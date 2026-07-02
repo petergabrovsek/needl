@@ -140,7 +140,7 @@ class Needl:
 
         letters_copy = letters.copy()
         shuffle(letters_copy)
-        stack = [(free_positions.pop(), letters_copy)]
+        stack: list[tuple[tuple[int, int], list[str]]] = [(free_positions.pop(), letters_copy)]
 
         max_iterations = self.width * self.height * 10
         iterations = 0
