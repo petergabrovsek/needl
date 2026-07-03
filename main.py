@@ -21,7 +21,14 @@ if __name__ == "__main__":
     #
     # needl = Needl(width, height, needle)
 
-    needl = MultiNeedle(20, 20, "ABCD", 5, 0)
+    # for seed in range(10):
+    #     needl = MultiNeedle(20, 28, "BANANA", 10, seed)
+    #     print("Seed:", seed)
+    #     needl.print_haystack()
+
+    needl = MultiNeedle(20, 28, "BANANA", 10, 0)
+    needl.print_haystack()
+
 
     # for y in range(20):
     #     for x in range(20):
