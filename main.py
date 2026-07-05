@@ -3,6 +3,7 @@ from needl import Needl
 
 from multi_needle import MultiNeedle
 
+import random
 
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser(description="Find a needle in a haystack grid")
@@ -21,13 +22,21 @@ if __name__ == "__main__":
     #
     # needl = Needl(width, height, needle)
 
-    # for seed in range(10):
-    #     needl = MultiNeedle(20, 28, "BANANA", 10, seed)
-    #     print("Seed:", seed)
-    #     needl.print_haystack()
+    random.seed(0)
 
-    needl = MultiNeedle(20, 28, "BANANA", 10, 0)
-    needl.print_haystack()
+    words = [
+        'banana', 'lomljenka', 'sladoled', 'plezanje', 'poletje',
+        'morje', 'nevihta', 'korenje', 'balkon', 'avtodom',
+        'magnezij', 'spanje', 'kovanec', 'fotografija', 'aknajlvatses',
+    ]
+
+    for i, word in enumerate(words):
+        print(word.upper())
+        needl = MultiNeedle(30, 42, word, 5, seed=i)
+        needl.print_haystack()
+
+    # needl = MultiNeedle(30, 42, "aknajlvatses", random.randint(5, 10), 1)
+    # needl.print_haystack()
 
 
     # for y in range(20):

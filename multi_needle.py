@@ -5,10 +5,10 @@ class MultiNeedle:
     def __init__(self, width: int, height: int, needle: str, needle_count: int, seed: int | None):
         self.width: int = width
         self.height: int = height
-        self.haystack: dict[tuple[int, int], str | None] = {(i, j): None for i in range(width) for j in range(height)}
+        self.haystack: dict[tuple[int, int], str | None] = {}
 
         self.needle: list[str] = list(needle.upper())
-        self.letters: set[str] = set(self.needle)
+        self.letters: list[str] = sorted(list(set(self.needle)))
         self.needle_count: int = needle_count
         self.needles_placed: int = 0
 
@@ -16,14 +16,27 @@ class MultiNeedle:
         if seed is not None:
             self.random.seed(seed)
 
-        self.free_positions: list[tuple[int, int]] = [(i, j) for i in range(width) for j in range(height)]
-        self.random.shuffle(self.free_positions)
+        self.free_positions: list[tuple[int, int]] = []
         self.used_positions: list[tuple[int, int]] = []
 
         self.first_letter = self.needle[0]
         self.first_letter_positions: set[tuple[int, int]] = set()
 
-        self.place_needles(needle_count)
+        max_tries = 10
+        while max_tries > 0:
+            max_tries -= 1
+            self.initialize_haystack()
+            self.place_needles(needle_count)
+            # self.print_haystack()
+            if self.fill_haystack():
+                break
+
+    def initialize_haystack(self):
+        self.haystack = {(i, j): None for i in range(self.width) for j in range(self.height)}
+        self.needles_placed = 0
+        self.free_positions = [(i, j) for i in range(self.width) for j in range(self.height)]
+        self.random.shuffle(self.free_positions)
+        self.first_letter_positions = set()
 
     def get_directions(self):
         directions = [(i, j) for i in [-1, 0, 1] for j in [-1, 0, 1] if i != 0 or j != 0]
@@ -156,6 +169,48 @@ class MultiNeedle:
 
         return needle_count
 
+    def fill_haystack(self) -> bool:
+        letters = self.letters.copy()
+        self.random.shuffle(letters)
+
+        # TODO: replace the tuple with the named tuple
+        stack: list[tuple[tuple[int, int], list[str]]] = [(self.free_positions.pop(), letters)]
+
+        max_iterations = self.width * self.height * len(self.needle) * 2
+        iterations = 0
+        while iterations < max_iterations:
+            iterations += 1
+            position = stack[-1][0]
+            remaining_letters = stack[-1][1]
+
+            if not remaining_letters:
+                previous_position = stack[-1][0]
+                self.free_positions.append(previous_position)
+                stack.pop()
+                letter = self.haystack[position]
+                self.haystack[position] = None
+                if letter == self.first_letter:
+                    self.first_letter_positions.remove(position)
+                if len(stack) == 0:
+                    return False
+                continue
+
+            letter = remaining_letters.pop()
+            self.haystack[position] = letter
+            if letter == self.first_letter:
+                self.first_letter_positions.add(position)
+            if not self.is_solution_count_expected():
+                continue
+
+            if self.free_positions:
+                letters = self.letters.copy()
+                self.random.shuffle(letters)
+                stack.append((self.free_positions.pop(), letters))
+            else:
+                return True
+
+        return False
+
     def is_valid_position(self, x: int, y: int):
         """Check if the position is within grid bounds."""
         return 0 <= y < self.height and 0 <= x < self.width
@@ -166,8 +221,10 @@ class MultiNeedle:
                 value = self.haystack[x, y]
                 if value is not None:
                     print(self.haystack[x, y], end=' ')
+                elif (x, y) in self.free_positions:
+                    print(' ', end=' ')
                 else:
-                    print('.', end=' ')
+                    print('-', end=' ')
 
             print()
         print()
