@@ -1,5 +1,7 @@
 import random
 
+from svg_grid import grid_to_svg
+
 
 class MultiNeedle:
     def __init__(self, width: int, height: int, needle: str, needle_count: int, seed: int | None):
@@ -7,7 +9,8 @@ class MultiNeedle:
         self.height: int = height
         self.haystack: dict[tuple[int, int], str | None] = {}
 
-        self.needle: list[str] = list(needle.upper())
+        self.needle_word: str = needle.upper()
+        self.needle: list[str] = list(self.needle_word)
         self.letters: list[str] = sorted(list(set(self.needle)))
         self.needle_count: int = needle_count
         self.needles_placed: int = 0
@@ -22,14 +25,16 @@ class MultiNeedle:
         self.first_letter = self.needle[0]
         self.first_letter_positions: set[tuple[int, int]] = set()
 
+    def generate(self) -> bool:
         max_tries = 10
         while max_tries > 0:
             max_tries -= 1
             self.initialize_haystack()
-            self.place_needles(needle_count)
-            # self.print_haystack()
-            if self.fill_haystack():
-                break
+            paths = self.place_needles(self.needle_count)
+            if paths is not None and self.fill_haystack():
+                grid_to_svg(self.width, self.height, paths, self.needle_word)
+                return True
+        return False
 
     def initialize_haystack(self):
         self.haystack = {(i, j): None for i in range(self.width) for j in range(self.height)}
@@ -43,18 +48,21 @@ class MultiNeedle:
         self.random.shuffle(directions)
         return directions
 
-    def place_needles(self, count: int) -> bool:
+    def place_needles(self, count: int) -> list[list[tuple[int, int]]] | None:
         # Place needle_count needles in an unambiguous manner
         if count == 0:
-            return True
+            return []
 
         for x, y in self.free_positions:
-            if self.place_needle_2(x, y, self.needle):
-                return self.place_needles(count - 1)
+            path = self.place_needle(x, y, self.needle)
+            if path is not None:
+                remaining_paths = self.place_needles(count - 1)
+                if remaining_paths is not None:
+                    return [path] + remaining_paths
 
-        return False
+        return None
 
-    def place_needle_2(self, x: int, y: int, needle: list[str]) -> bool:
+    def place_needle(self, x: int, y: int, needle: list[str]) -> list[tuple[int, int]] | None:
         if len(needle) == 1:
             self.haystack[x, y] = needle[0]
             self.free_positions.remove((x, y))
@@ -65,8 +73,9 @@ class MultiNeedle:
                 self.haystack[x, y] = None
                 self.needles_placed -= 1
                 self.free_positions.append((x, y))
+                return None
 
-            return as_expected
+            return [(x, y)]
 
         if self.haystack[x, y] is not None:
             raise Exception(f"Haystack not free at the given position {(x, y)}")
@@ -82,59 +91,15 @@ class MultiNeedle:
             if not self.is_valid_position(xx, yy) or self.haystack[xx, yy] is not None:
                 continue
 
-            placement_successful = self.place_needle_2(xx, yy, eedle)
-            if placement_successful:
-                return True
-            else:
-                pass
+            path = self.place_needle(xx, yy, eedle)
+            if path:
+                return [(x, y)] + path
 
         self.haystack[x, y] = None
         self.free_positions.append((x, y))
         if n == self.first_letter:
             self.first_letter_positions.remove((x, y))
-        return False
-
-    def place_needle(self, x: int, y: int, needle: list[str]) -> bool:
-        if len(needle) == 0:
-            return True
-
-        is_last_letter = len(needle) == 1
-        if is_last_letter:
-            self.needles_placed += 1
-
-        n, *eedle = needle
-        is_first_letter = n == self.first_letter
-        self.haystack[x, y] = n
-
-        if is_first_letter:
-            self.first_letter_positions.add((x, y))
-
-        if not self.is_solution_count_expected():
-            self.haystack[x, y] = None
-            if is_first_letter:
-                self.first_letter_positions.remove((x, y))
-            if is_last_letter:
-                self.needles_placed -= 1
-            return False
-
-        neighbours = [(x + dx, y + dy) for dx, dy in self.get_directions()]
-        self.random.shuffle(neighbours)
-        for neighbour in neighbours:
-            if not self.is_valid_position(*neighbour) or self.haystack[neighbour] is not None:
-                continue
-
-            placement_successful = self.place_needle(*neighbour, eedle)
-            if placement_successful:
-                print("Deleted free position 3:", neighbour)
-                self.free_positions.remove(neighbour)
-                return True
-
-        self.haystack[x, y] = None
-        if is_first_letter:
-            self.first_letter_positions.remove((x, y))
-        if is_last_letter:
-            self.needles_placed -= 1
-        return False
+        return None
 
     def is_solution_count_expected(self) -> bool:
         found_needles = 0
@@ -156,13 +121,11 @@ class MultiNeedle:
         elif len(eedle) == 0:
             return 1
 
-        e, *edle = eedle
-
         self.haystack[x, y] = None
 
         needle_count = 0
         for xx, yy in [(x + dx, y + dy) for dx, dy in self.get_directions()]:
-            if self.is_valid_position(xx, yy) and e == self.haystack[xx, yy]:
+            if self.is_valid_position(xx, yy) and eedle[0] == self.haystack[xx, yy]:
                 needle_count += self.count_needles(xx, yy, eedle)
 
         self.haystack[x, y] = n
