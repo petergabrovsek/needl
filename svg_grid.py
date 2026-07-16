@@ -42,6 +42,11 @@ def grid_to_svg(
             f'<polyline points="{points}" fill="none" stroke="{line_color}" '
             f'stroke-width="{line_width}" stroke-linejoin="round" stroke-linecap="round" />'
         )
+        x = path[0][0] * cell_size + cell_size / 2
+        y = path[0][1] * cell_size + cell_size / 2
+        parts.append(
+            f'<circle cx="{x}" cy="{y}" r="{dot_radius * 2}" fill="{dot_color}" />'
+        )
 
     parts.append("</svg>")
     svg = "\n".join(parts)

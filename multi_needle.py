@@ -1,4 +1,6 @@
+import json
 import random
+from pathlib import Path
 
 from svg_grid import grid_to_svg
 
@@ -24,6 +26,7 @@ class MultiNeedle:
 
         self.first_letter = self.needle[0]
         self.first_letter_positions: set[tuple[int, int]] = set()
+        self.paths: list[list[tuple[int, int]]] = []
 
     def generate(self) -> bool:
         max_tries = 10
@@ -32,12 +35,14 @@ class MultiNeedle:
             self.initialize_haystack()
             paths = self.place_needles(self.needle_count)
             if paths is not None and self.fill_haystack():
-                grid_to_svg(self.width, self.height, paths, self.needle_word)
+                self.paths = paths
+                grid_to_svg(self.width, self.height, self.paths, self.needle_word)
                 return True
         return False
 
     def initialize_haystack(self):
         self.haystack = {(i, j): None for i in range(self.width) for j in range(self.height)}
+        self.paths = []
         self.needles_placed = 0
         self.free_positions = [(i, j) for i in range(self.width) for j in range(self.height)]
         self.random.shuffle(self.free_positions)
@@ -177,6 +182,66 @@ class MultiNeedle:
     def is_valid_position(self, x: int, y: int):
         """Check if the position is within grid bounds."""
         return 0 <= y < self.height and 0 <= x < self.width
+
+    def haystack_to_grid(self) -> list[list[str | None]]:
+        return [
+            [self.haystack[x, y] for x in range(self.width)]
+            for y in range(self.height)
+        ]
+
+    @staticmethod
+    def grid_to_haystack(grid: list[list[str | None]]) -> dict[tuple[int, int], str | None]:
+        height = len(grid)
+        width = len(grid[0]) if height > 0 else 0
+        return {
+            (x, y): grid[y][x]
+            for y in range(height)
+            for x in range(width)
+        }
+
+    def to_dict(self) -> dict:
+        return {
+            "width": self.width,
+            "height": self.height,
+            "haystack": self.haystack_to_grid(),
+            "needle": self.needle_word,
+            "needle_count": self.needle_count,
+            "paths": [[[x, y] for x, y in path] for path in self.paths],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "MultiNeedle":
+        obj = cls(
+            data["width"],
+            data["height"],
+            data["needle"],
+            data["needle_count"],
+            seed=None,
+        )
+        obj.haystack = cls.grid_to_haystack(data["haystack"])
+        obj.paths = [[tuple(point) for point in path] for path in data["paths"]]
+        obj.needles_placed = len(obj.paths)
+        obj.first_letter_positions = {
+            (x, y)
+            for x in range(obj.width)
+            for y in range(obj.height)
+            if obj.haystack[x, y] == obj.first_letter
+        }
+        return obj
+
+    def to_json(self, **kwargs) -> str:
+        return json.dumps(self.to_dict(), **kwargs)
+
+    @classmethod
+    def from_json(cls, data: str) -> "MultiNeedle":
+        return cls.from_dict(json.loads(data))
+
+    def save_json(self, path: str | Path, **kwargs) -> None:
+        Path(path).write_text(self.to_json(**kwargs), encoding="utf-8")
+
+    @classmethod
+    def load_json(cls, path: str | Path) -> "MultiNeedle":
+        return cls.from_json(Path(path).read_text(encoding="utf-8"))
 
     def print_haystack(self):
         for y in range(self.height):
